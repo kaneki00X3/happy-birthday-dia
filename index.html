@@ -520,10 +520,59 @@
 
   function celebrate() {
     launchConfetti();
+    playHappyBirthday();
     setTimeout(() => {
       revealSection.classList.add('show');
       revealSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }, 700);
+  }
+
+  // ---------- Happy Birthday melody (synthesized, no audio files / no copyright issues) ----------
+  function playHappyBirthday() {
+    if (!audioCtx) return;
+    // Reuse the same AudioContext already unlocked by the user's earlier tap on "เริ่มเลย!"
+    if (audioCtx.state === 'suspended') audioCtx.resume();
+
+    const NOTE = {
+      C4: 261.63, D4: 293.66, E4: 329.63, F4: 349.23,
+      G4: 392.00, A4: 440.00, B4: 493.88, C5: 523.25, D5: 587.33
+    };
+
+    // Classic 4-phrase "Happy Birthday to You" melody: [note, duration in beats]
+    const tune = [
+      [NOTE.C4, 0.75], [NOTE.C4, 0.25], [NOTE.D4, 1], [NOTE.C4, 1], [NOTE.F4, 1], [NOTE.E4, 2],
+      [NOTE.C4, 0.75], [NOTE.C4, 0.25], [NOTE.D4, 1], [NOTE.C4, 1], [NOTE.G4, 1], [NOTE.F4, 2],
+      [NOTE.C4, 0.75], [NOTE.C4, 0.25], [NOTE.C5, 1], [NOTE.A4, 1], [NOTE.F4, 1], [NOTE.E4, 1], [NOTE.D4, 2],
+      [NOTE.D5, 0.75], [NOTE.D5, 0.25], [NOTE.C5, 1], [NOTE.A4, 1], [NOTE.F4, 1], [NOTE.G4, 1], [NOTE.F4, 2.5],
+    ];
+
+    const beatSec = 0.34; // tempo
+    let t = audioCtx.currentTime + 0.05;
+
+    tune.forEach(([freq, beats]) => {
+      const dur = beats * beatSec;
+      playNote(freq, t, dur * 0.92); // slight gap between notes for clarity
+      t += dur;
+    });
+  }
+
+  function playNote(freq, startTime, duration) {
+    const osc = audioCtx.createOscillator();
+    const gain = audioCtx.createGain();
+    osc.type = 'triangle'; // soft, warm tone — gentler than a plain square/sine
+    osc.frequency.value = freq;
+
+    // simple ADSR-ish envelope so notes don't click and fade naturally
+    gain.gain.setValueAtTime(0, startTime);
+    gain.gain.linearRampToValueAtTime(0.22, startTime + 0.02);
+    gain.gain.linearRampToValueAtTime(0.18, startTime + duration * 0.6);
+    gain.gain.linearRampToValueAtTime(0, startTime + duration);
+
+    osc.connect(gain);
+    gain.connect(audioCtx.destination);
+
+    osc.start(startTime);
+    osc.stop(startTime + duration + 0.02);
   }
 
   function launchConfetti() {
